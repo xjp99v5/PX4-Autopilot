@@ -1720,14 +1720,14 @@ FixedwingPositionControl::Run()
 				_global_local_alt0 = _local_pos.ref_alt;
 			}
 
-			vehicle_local_position_setpoint_s trajectory_setpoint;
+			trajectory_setpoint_s trajectory_setpoint;
 
 			if (_trajectory_setpoint_sub.update(&trajectory_setpoint)) {
 				map_projection_reproject(&_global_local_proj_ref,
-							 trajectory_setpoint.x, trajectory_setpoint.y,
+							 trajectory_setpoint.position[0], trajectory_setpoint.position[1],
 							 &_pos_sp_triplet.current.lat, &_pos_sp_triplet.current.lon);
 
-				_pos_sp_triplet.current.alt = _global_local_alt0 - trajectory_setpoint.z;
+				_pos_sp_triplet.current.alt = _global_local_alt0 - trajectory_setpoint.position[2];
 				_pos_sp_triplet.current.valid = true;
 			}
 		}
