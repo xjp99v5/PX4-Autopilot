@@ -29,6 +29,7 @@ px4_add_board(
 		#distance_sensor # all available distance sensor drivers
 		#distance_sensor/ll40ls
 		#distance_sensor/lightware_laser_serial
+		distance_sensor/tfmini
 		#dshot
 		gps
 		#heater
