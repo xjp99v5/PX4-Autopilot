@@ -5,7 +5,6 @@ px4_add_board(
 	MODEL sitl
 	ROMFSROOT px4fmu_common
 	LABEL test
-	EMBEDDED_METADATA parameters
 	TESTING
 	DRIVERS
 		#barometer # all available barometer drivers
@@ -14,6 +13,7 @@ px4_add_board(
 		camera_trigger
 		#differential_pressure # all available differential pressure drivers
 		#distance_sensor # all available distance sensor drivers
+		distance_sensor/lightware_laser_serial
 		gps
 		#imu # all available imu drivers
 		#magnetometer # all available magnetometer drivers
@@ -86,6 +86,7 @@ px4_add_board(
 	EXAMPLES
 		dyn_hello # dynamically loading modules example
 		fake_gps
+		fake_gyro
 		fake_magnetometer
 		fixedwing_control # Tutorial code from https://px4.io/dev/example_fixedwing_control
 		hello

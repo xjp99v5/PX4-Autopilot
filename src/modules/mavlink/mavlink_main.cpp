@@ -94,7 +94,8 @@ hrt_abstime Mavlink::_first_start_time = {0};
 bool Mavlink::_boot_complete = false;
 
 Mavlink::Mavlink() :
-	ModuleParams(nullptr)
+	ModuleParams(nullptr),
+	_receiver(this)
 {
 	// initialise parameter cache
 	mavlink_update_parameters();
@@ -1778,6 +1779,54 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 
 		break;
 
+	case MAVLINK_MODE_ONBOARD_LOW_BANDWIDTH:
+		// Note: streams requiring low latency come first
+		configure_stream_local("TIMESYNC", 10.0f);
+		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
+		configure_stream_local("LOCAL_POSITION_NED", 30.0f);
+		configure_stream_local("ATTITUDE", 20.0f);
+		configure_stream_local("ALTITUDE", 10.0f);
+		configure_stream_local("DISTANCE_SENSOR", 10.0f);
+		configure_stream_local("MOUNT_ORIENTATION", 10.0f);
+		configure_stream_local("OBSTACLE_DISTANCE", 10.0f);
+		configure_stream_local("ODOMETRY", 30.0f);
+		configure_stream_local("GIMBAL_DEVICE_ATTITUDE_STATUS", 1.0f);
+		configure_stream_local("GIMBAL_MANAGER_STATUS", 0.5f);
+		configure_stream_local("GIMBAL_DEVICE_SET_ATTITUDE", 5.0f);
+
+		configure_stream_local("ADSB_VEHICLE", unlimited_rate);
+		configure_stream_local("ATTITUDE_TARGET", 2.0f);
+		configure_stream_local("BATTERY_STATUS", 0.5f);
+		configure_stream_local("COLLISION", unlimited_rate);
+		configure_stream_local("ESTIMATOR_STATUS", 1.0f);
+		configure_stream_local("EXTENDED_SYS_STATE", 1.0f);
+		configure_stream_local("GLOBAL_POSITION_INT", 10.0f);
+		configure_stream_local("GPS2_RAW", unlimited_rate);
+		configure_stream_local("GPS_RAW_INT", unlimited_rate);
+		configure_stream_local("HOME_POSITION", 0.5f);
+		configure_stream_local("NAV_CONTROLLER_OUTPUT", 1.5f);
+		configure_stream_local("OPTICAL_FLOW_RAD", 1.0f);
+		configure_stream_local("ORBIT_EXECUTION_STATUS", 5.0f);
+		configure_stream_local("PING", 0.1f);
+		configure_stream_local("POSITION_TARGET_GLOBAL_INT", 1.5f);
+		configure_stream_local("POSITION_TARGET_LOCAL_NED", 1.5f);
+		configure_stream_local("RC_CHANNELS", 5.0f);
+		configure_stream_local("SERVO_OUTPUT_RAW_0", 1.0f);
+		configure_stream_local("SYS_STATUS", 5.0f);
+		configure_stream_local("TRAJECTORY_REPRESENTATION_WAYPOINTS", 5.0f);
+		configure_stream_local("UTM_GLOBAL_POSITION", 1.0f);
+		configure_stream_local("VFR_HUD", 4.0f);
+		configure_stream_local("VIBRATION", 0.5f);
+		configure_stream_local("WIND_COV", 1.0f);
+
+#if !defined(CONSTRAINED_FLASH)
+		configure_stream_local("DEBUG", 1.0f);
+		configure_stream_local("DEBUG_FLOAT_ARRAY", 1.0f);
+		configure_stream_local("DEBUG_VECT", 1.0f);
+		configure_stream_local("NAMED_VALUE_FLOAT", 1.0f);
+#endif // !CONSTRAINED_FLASH
+		break;
+
 	default:
 		ret = -1;
 		break;
@@ -1988,6 +2037,9 @@ Mavlink::task_main(int argc, char *argv[])
 					} else if (strcmp(myoptarg, "gimbal") == 0) {
 						_mode = MAVLINK_MODE_GIMBAL;
 
+					} else if (strcmp(myoptarg, "onboard_low_bandwidth") == 0) {
+						_mode = MAVLINK_MODE_ONBOARD_LOW_BANDWIDTH;
+
 					} else {
 						PX4_ERR("invalid mode");
 						err_flag = true;
@@ -2178,8 +2230,7 @@ Mavlink::task_main(int argc, char *argv[])
 		send_autopilot_capabilities();
 	}
 
-	/* start the MAVLink receiver last to avoid a race */
-	MavlinkReceiver::receive_start(&_receive_thread, this);
+	_receiver.start();
 
 	_mavlink_start_time = hrt_absolute_time();
 
@@ -2366,10 +2417,10 @@ Mavlink::task_main(int argc, char *argv[])
 
 		/* check for ulog streaming messages */
 		if (_mavlink_ulog) {
-			if (_mavlink_ulog_stop_requested) {
+			if (_mavlink_ulog_stop_requested.load()) {
 				_mavlink_ulog->stop();
 				_mavlink_ulog = nullptr;
-				_mavlink_ulog_stop_requested = false;
+				_mavlink_ulog_stop_requested.store(false);
 
 			} else {
 				if (cmd_logging_start_acknowledgement) {
@@ -2462,8 +2513,7 @@ Mavlink::task_main(int argc, char *argv[])
 		perf_end(_loop_perf);
 	}
 
-	/* first wait for threads to complete before tearing down anything */
-	pthread_join(_receive_thread, nullptr);
+	_receiver.stop();
 
 	delete _subscribe_to_stream;
 	_subscribe_to_stream = nullptr;
@@ -2764,6 +2814,7 @@ Mavlink::display_status()
 	printf("\t  tx rate max: %i B/s\n", _datarate);
 	printf("\t  rx: %.1f B/s\n", (double)_tstatus.rx_rate_avg);
 	printf("\t  rx loss: %.1f%%\n", (double)_tstatus.rx_message_lost_rate);
+	_receiver.print_detailed_rx_stats();
 
 	if (_mavlink_ulog) {
 		printf("\tULog rate: %.1f%% of max %.1f%%\n", (double)_mavlink_ulog->current_data_rate() * 100.,

@@ -287,12 +287,13 @@ PARAM_DEFINE_INT32(COM_RC_ARM_HYST, 1000);
 PARAM_DEFINE_FLOAT(COM_DISARM_LAND, 2.0f);
 
 /**
- * Time-out for auto disarm if too slow to takeoff
+ * Time-out for auto disarm if not taking off
  *
- * A non-zero, positive value specifies the time after arming, in seconds, within which the
- * vehicle must take off (after which it will automatically disarm).
+ * A non-zero, positive value specifies the time in seconds, within which the
+ * vehicle is expected to take off after arming. In case the vehicle didn't takeoff
+ * within the timout it disamrs again.
  *
- * A zero or negative value means that automatic disarming triggered by a pre-takeoff timeout is disabled.
+ * A negative value disables autmoatic disarming triggered by a pre-takeoff timeout.
  *
  * @group Commander
  * @unit s
@@ -304,11 +305,11 @@ PARAM_DEFINE_FLOAT(COM_DISARM_PRFLT, 10.0f);
 /**
  * Allow arming without GPS
  *
- * The default allows to arm the vehicle without GPS signal.
+ * The default allows the vehicle to arm without GPS signal.
  *
  * @group Commander
- * @value 0 Allow arming without GPS
- * @value 1 Require GPS lock to arm
+ * @value 0 Require GPS lock to arm
+ * @value 1 Allow arming without GPS
  */
 PARAM_DEFINE_INT32(COM_ARM_WO_GPS, 1);
 
@@ -341,6 +342,7 @@ PARAM_DEFINE_INT32(COM_LOW_BAT_ACT, 0);
 
 /**
  * Time-out to wait when offboard connection is lost before triggering offboard lost action.
+ *
  * See COM_OBL_ACT and COM_OBL_RC_ACT to configure action.
  *
  * @group Commander
@@ -386,6 +388,17 @@ PARAM_DEFINE_INT32(COM_OBL_ACT, 0);
  * @group Commander
  */
 PARAM_DEFINE_INT32(COM_OBL_RC_ACT, 0);
+
+/**
+ * Time-out to wait when onboard computer connection is lost before warning about loss connection.
+ *
+ * @group Commander
+ * @unit s
+ * @min 0
+ * @max 60
+ * @increment 0.01
+ */
+PARAM_DEFINE_FLOAT(COM_OBC_LOSS_T, 5.0f);
 
 /**
  * First flightmode slot (1000-1160)
@@ -595,6 +608,7 @@ PARAM_DEFINE_FLOAT(COM_ARM_IMU_GYR, 0.25f);
 
 /**
  * Maximum magnetic field inconsistency between units that will allow arming
+ *
  * Set -1 to disable the check.
  *
  * @group Commander
@@ -885,14 +899,15 @@ PARAM_DEFINE_INT32(COM_OBS_AVOID, 0);
 PARAM_DEFINE_INT32(COM_FLT_PROFILE, 0);
 
 /**
- * Require all the ESCs to be detected to arm.
+ * Enable checks on ESCs that report telemetry.
  *
- * This param is specific for ESCs reporting status. Normal ESCs configurations are not affected by the change of this param.
+ * If this parameter is set, the system will check ESC's online status and failures.
+ * This param is specific for ESCs reporting status. It shall be used only if ESCs support telemetry.
  *
  * @group Commander
  * @boolean
  */
-PARAM_DEFINE_INT32(COM_ARM_CHK_ESCS, 1);
+PARAM_DEFINE_INT32(COM_ARM_CHK_ESCS, 0);
 
 /**
  * Condition to enter prearmed mode
@@ -906,7 +921,7 @@ PARAM_DEFINE_INT32(COM_ARM_CHK_ESCS, 1);
  *
  * @group Commander
  */
-PARAM_DEFINE_INT32(COM_PREARM_MODE, 1);
+PARAM_DEFINE_INT32(COM_PREARM_MODE, 0);
 
 /**
  * Enable Motor Testing
@@ -974,7 +989,7 @@ PARAM_DEFINE_FLOAT(COM_LKDOWN_TKO, 3.0f);
 /**
 * Enable preflight check for maximal allowed airspeed when arming.
 *
-* Deny arming if the current airspeed measurement is greater than half the stall speed (ASPD_STALL).
+* Deny arming if the current airspeed measurement is greater than half the cruise airspeed (FW_AIRSPD_TRIM).
 * Excessive airspeed measurements on ground are either caused by wind or bad airspeed calibration.
 *
 * @group Commander
